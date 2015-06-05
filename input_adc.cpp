@@ -28,15 +28,44 @@
 #include "utility/pdb.h"
 #include "utility/dspinst.h"
 
-DMAMEM static uint16_t analog_rx_buffer[AUDIO_BLOCK_SAMPLES];
-audio_block_t * AudioInputAnalog::block_left = NULL;
-uint16_t AudioInputAnalog::block_offset = 0;
-uint16_t AudioInputAnalog::dc_average = 0;
-bool AudioInputAnalog::update_responsibility = false;
-DMAChannel AudioInputAnalog::dma(false);
+#define PDB0_CH1C1              *(volatile uint32_t *)0x40036038 // Channel 1 Control Register 1
+#define PDB0_CH1S               *(volatile uint32_t *)0x4003603C // Channel 1 Status Register
+#define PDB0_CH1DLY0            *(volatile uint32_t *)0x40036040 // Channel 1 Delay 0 Register
+#define PDB0_CH1DLY1            *(volatile uint32_t *)0x40036044 // Channel 1 Delay 1 Register
 
 
-void AudioInputAnalog::init(uint8_t pin)
+DMAMEM static uint16_t analog_rx_buffer2[AUDIO_BLOCK_SAMPLES];
+
+//#define DMAMEM __attribute__ ((section(".dmabuffers"), used))
+
+
+audio_block_t * AudioInputAnalog2::block_left = NULL;
+
+
+/*
+*typedef struct audio_block_struct {
+*	unsigned char ref_count;
+*	unsigned char memory_pool_index;
+*	unsigned char reserved1;
+*	unsigned char reserved2;
+*	int16_t data[AUDIO_BLOCK_SAMPLES];
+*} audio_block_t;
+*/
+
+uint16_t AudioInputAnalog2::block_offset = 0;
+
+//Class::Var
+
+uint16_t AudioInputAnalog2::dc_average = 0;
+
+
+bool AudioInputAnalog2::update_responsibility = false;
+
+// class DMAChannel : public DMABaseClass {  //..cores/teensy3/DMAChannel.h
+DMAChannel AudioInputAnalog2::myDMA(false);
+
+
+void AudioInputAnalog2::init(uint8_t pin)
 {
 	uint32_t i, sum=0;
 
@@ -52,6 +81,9 @@ void AudioInputAnalog::init(uint8_t pin)
 	}
 	dc_average = sum >> 10;
 
+//#define PDB_CONFIG (PDB_SC_TRGSEL(15) | PDB_SC_PDBEN | PDB_SC_CONT | PDB_SC_PDBIE | PDB_SC_DMAEN)
+//#define PDB_SC_TRGSEL(n)		(((n) & 15) << 8)	// Trigger Input Source Select
+
 	// set the programmable delay block to trigger the ADC at 44.1 kHz
 	if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
 	  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
@@ -59,57 +91,93 @@ void AudioInputAnalog::init(uint8_t pin)
 	  || PDB0_IDLY != 1
 	  || PDB0_CH0C1 != 0x0101) {
 		SIM_SCGC6 |= SIM_SCGC6_PDB;
+//#define SIM_SCGC6		(*(volatile uint32_t *)0x4004803C) // System Clock Gating Control Register 6
+//#define SIM_SCGC6_PDB			((uint32_t)0x00400000)		// PDB Clock Gate Control SIM_SCGC6 |= SIM_SCGC6_DMAMUX;
+
 		PDB0_IDLY = 1;
+
+//#define PDB0_IDLY		(*(volatile uint32_t *)0x4003600C) // Interrupt Delay Register
+/*PDB Interrupt Delay
+Specifies the delay value to schedule the PDB interrupt. It can be used to schedule an independent
+interrupt at some point in the PDB cycle. If enabled, a PDB interrupt is generated, when the counter is
+equal to the IDLY. Reading these bits returns the value of internal register that is effective for the current
+cycle of the PDB
+*/
+
 		PDB0_MOD = PDB_PERIOD;
+/*PDB Modulus
+Specifies the period of the counter. When the counter reaches this value, it will be reset back to zero. If the
+PDB is in Continuous mode, the count begins anew. Reading these bits returns the value of internal
+register that is effective for the current cycle of PDB 
+
+*/
+
 		PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+
+//#define PDB_SC_LDOK			0x00000001		// Load OK
+
 		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
-		PDB0_CH0C1 = 0x0101;
+
+//#define PDB_SC_SWTRIG			0x00010000		// Software Trigger
+		PDB0_CH1C1 = 0x0101;
+		//PDB0_CH0C1 = 0x0101; //b0000 0000 0000 0001 0000 0001
+//#define PDB0_CH0C1		(*(volatile uint32_t *)0x40036010) // Channel n Control Register 1
+/*PDB channel's corresponding pre-trigger asserts when the counter reaches the channel delay register
+and one peripheral clock cycle after a rising edge is detected on selected trigger input source or
+software trigger is selected and SETRIG is written with 1
+
+
+These bits enable the PDB ADC pre-trigger outputs. Only lower M pre-trigger bits are implemented in this
+MCU.
+0 PDB channel's corresponding pre-trigger disabled.
+1 PDB channel's corresponding pre-trigger enabled.
+*/
 	}
 
 	// enable the ADC for hardware trigger and DMA
-	ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
-
+	//ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
+	ADC1_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
 	// set up a DMA channel to store the ADC data
-	dma.begin(true);
-	dma.TCD->SADDR = &ADC0_RA;
-	dma.TCD->SOFF = 0;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = 0;
-	dma.TCD->DADDR = analog_rx_buffer;
-	dma.TCD->DOFF = 2;
-	dma.TCD->CITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
-	dma.TCD->DLASTSGA = -sizeof(analog_rx_buffer);
-	dma.TCD->BITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
+	myDMA.begin(true);
+	myDMA.TCD->SADDR = &ADC1_RA;
+	myDMA.TCD->SOFF = 0;
+	myDMA.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+	myDMA.TCD->NBYTES_MLNO = 2;
+	myDMA.TCD->SLAST = 0;
+	myDMA.TCD->DADDR = analog_rx_buffer2;
+	myDMA.TCD->DOFF = 2;
+	myDMA.TCD->CITER_ELINKNO = sizeof(analog_rx_buffer2) / 2;
+	myDMA.TCD->DLASTSGA = -sizeof(analog_rx_buffer2);
+	myDMA.TCD->BITER_ELINKNO = sizeof(analog_rx_buffer2) / 2;
+	myDMA.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+	myDMA.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC1);
 	update_responsibility = update_setup();
-	dma.enable();
-	dma.attachInterrupt(isr);
+	myDMA.enable();
+	myDMA.attachInterrupt(isr);
 }
 
 
-void AudioInputAnalog::isr(void)
+void AudioInputAnalog2::isr(void)
 {
 	uint32_t daddr, offset;
 	const uint16_t *src, *end;
 	uint16_t *dest_left;
 	audio_block_t *left;
 
-	daddr = (uint32_t)(dma.TCD->DADDR);
-	dma.clearInterrupt();
+	daddr = (uint32_t)(myDMA.TCD->DADDR);
+	myDMA.clearInterrupt();
 
-	if (daddr < (uint32_t)analog_rx_buffer + sizeof(analog_rx_buffer) / 2) {
+	if (daddr < (uint32_t)analog_rx_buffer2 + sizeof(analog_rx_buffer2) / 2) {
 		// DMA is receiving to the first half of the buffer
 		// need to remove data from the second half
-		src = (uint16_t *)&analog_rx_buffer[AUDIO_BLOCK_SAMPLES/2];
-		end = (uint16_t *)&analog_rx_buffer[AUDIO_BLOCK_SAMPLES];
+		src = (uint16_t *)&analog_rx_buffer2[AUDIO_BLOCK_SAMPLES/2];
+		end = (uint16_t *)&analog_rx_buffer2[AUDIO_BLOCK_SAMPLES];
 		if (update_responsibility) AudioStream::update_all();
 	} else {
 		// DMA is receiving to the second half of the buffer
 		// need to remove data from the first half
-		src = (uint16_t *)&analog_rx_buffer[0];
-		end = (uint16_t *)&analog_rx_buffer[AUDIO_BLOCK_SAMPLES/2];
+		src = (uint16_t *)&analog_rx_buffer2[0];
+		end = (uint16_t *)&analog_rx_buffer2[AUDIO_BLOCK_SAMPLES/2];
 	}
 	left = block_left;
 	if (left != NULL) {
@@ -125,7 +193,7 @@ void AudioInputAnalog::isr(void)
 
 
 
-void AudioInputAnalog::update(void)
+void AudioInputAnalog2::update(void)
 {
 	audio_block_t *new_left=NULL, *out_left=NULL;
 	unsigned int dc, offset;

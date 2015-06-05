@@ -1,3 +1,4 @@
+PSAudio KEYWORD2
 Audio	KEYWORD2
 AudioConnection	KEYWORD2
 AudioInputI2S	KEYWORD2

@@ -30,19 +30,20 @@
 #include "AudioStream.h"
 #include "DMAChannel.h"
 
-class AudioInputAnalog : public AudioStream
+class AudioInputAnalog2 : public AudioStream
 {
 public:
-        AudioInputAnalog() : AudioStream(0, NULL) { init(A2); }
-        AudioInputAnalog(uint8_t pin) : AudioStream(0, NULL) { init(pin); }
+        AudioInputAnalog2() : AudioStream(0, NULL) { init(A3); }
+        AudioInputAnalog2(uint8_t pin) : AudioStream(0, NULL) { init(pin); }
         virtual void update(void);
-        friend void dma_ch9_isr(void);
+        friend void dma_ch10_isr(void); //cores/teensy3/mk20dx128.c:
+	//// 25 DMA channel 9 transfer complete
 private:
         static audio_block_t *block_left;
         static uint16_t block_offset;
 	static uint16_t dc_average;
         static bool update_responsibility;
-	static DMAChannel dma;
+	static DMAChannel myDMA;
 	static void isr(void);
 	static void init(uint8_t pin);
 };

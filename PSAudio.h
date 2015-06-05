@@ -24,8 +24,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef Audio_h_
-#define Audio_h_
+#ifndef PSAudio_h_
+#define PSAudio_h_
 
 #if TEENSYDUINO < 120
 #error "Teensyduino version 1.20 or later is required to compile the Audio library."
