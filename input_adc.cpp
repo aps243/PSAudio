@@ -34,9 +34,14 @@ uint16_t AudioInputAnalog::block_offset = 0;
 uint16_t AudioInputAnalog::dc_average = 0;
 bool AudioInputAnalog::update_responsibility = false;
 DMAChannel AudioInputAnalog::dma(false);
+int AudioInputAnalog::adc_to_use = 0;
 
+void AudioInputAnalog::setADC(int adc)
+{
+	adc = adc_to_use;
+}
 
-void AudioInputAnalog::init(uint8_t pin)
+void AudioInputAnalog::init(uint8_t pin)//, uint8_t other_adc)
 {
 	uint32_t i, sum=0;
 
@@ -53,7 +58,7 @@ void AudioInputAnalog::init(uint8_t pin)
 	dc_average = sum >> 10;
 
 	// set the programmable delay block to trigger the ADC at 44.1 kHz
-	if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
+	if (!(SIM_SCGC6 & SIM_SCGC6_PDB )
 	  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
 	  || PDB0_MOD != PDB_PERIOD
 	  || PDB0_IDLY != 1
@@ -65,20 +70,19 @@ void AudioInputAnalog::init(uint8_t pin)
 		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
 		PDB0_CH0C1 = 0x0101;
 	}
-	
-	 /*******************************************************
-	 * Below is where the library is hardcoded to use ADC0. *
-	 * It seems that we could modify it to be variable, but *          
-	 * I'm not sure the variable ADC1 exists by default, as *
-	 * ADC0 is not declared in this file or in the header.  *
-	 *******************************************************/
-	 
+
+
 	// enable the ADC for hardware trigger and DMA
-	ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;  //  ADC0 here
+	if (adc_to_use == 0)
+		ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;			
+	else
+		ADC1_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
 
 	// set up a DMA channel to store the ADC data
 	dma.begin(true);
-	dma.TCD->SADDR = &ADC0_RA;  //  ADC0 here
+
+	dma.TCD->SADDR = (adc_to_use == 0) ? &ADC0_RA : &ADC1_RA;
+
 	dma.TCD->SOFF = 0;
 	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
 	dma.TCD->NBYTES_MLNO = 2;
@@ -89,7 +93,12 @@ void AudioInputAnalog::init(uint8_t pin)
 	dma.TCD->DLASTSGA = -sizeof(analog_rx_buffer);
 	dma.TCD->BITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);     //  ADC0 here
+
+	if (adc_to_use == 0)
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
+	else
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC1);
+
 	update_responsibility = update_setup();
 	dma.enable();
 	dma.attachInterrupt(isr);
@@ -197,6 +206,17 @@ void AudioInputAnalog::update(void)
 	transmit(out_left);
 	release(out_left);
 }
+/*
+void setADC(int newADC)
+{
+    if (newADC != 1)
+        adc_to_use = 0;
+    else
+        adc_to_use = 1;
+}
 
-
-
+int getADC()
+{
+    return adc_to_use;
+}
+*/

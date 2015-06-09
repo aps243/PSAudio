@@ -33,8 +33,13 @@
 class AudioInputAnalog : public AudioStream
 {
 public:
-        AudioInputAnalog() : AudioStream(0, NULL) { init(A2); }                  //  inately uses pin A2 by default, but can be overloaded with another pin on ADC, like so:
-        AudioInputAnalog(uint8_t pin) : AudioStream(0, NULL) { init(pin); }      //  AudioInputAnalog adc1(A9);
+        static int adc_to_use;      //  can now set the ADc to 1 or 0
+        static void setADC(int);    //  defaults to 0 if not given 1
+        AudioInputAnalog() : AudioStream(0, NULL) { init(A2); adc_to_use = 0;}  // Default constructor uses pin A2 and ADC0
+        AudioInputAnalog(uint8_t pin) : AudioStream(0, NULL) { init(pin); }     //  Overload the Constructor with a choosen pin, defaults to ADC0
+        AudioInputAnalog(uint8_t pin, int newADC) : AudioStream(0, NULL) { setADC(newADC); init(pin); }     //  Overload the Constructor with a choosen pin and ADC
+//        void setADC(int);
+//        int getADC();
         virtual void update(void);
         friend void dma_ch9_isr(void);
 private:
@@ -45,6 +50,7 @@ private:
 	    static DMAChannel dma;
 	    static void isr(void);
 	    static void init(uint8_t pin);
+
 };
 
 #endif
