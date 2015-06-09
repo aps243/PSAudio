@@ -33,18 +33,18 @@
 class AudioInputAnalog : public AudioStream
 {
 public:
-        AudioInputAnalog() : AudioStream(0, NULL) { init(A2); }
-        AudioInputAnalog(uint8_t pin) : AudioStream(0, NULL) { init(pin); }
+        AudioInputAnalog() : AudioStream(0, NULL) { init(A2); }                  //  inately uses pin A2 by default, but can be overloaded with another pin on ADC, like so:
+        AudioInputAnalog(uint8_t pin) : AudioStream(0, NULL) { init(pin); }      //  AudioInputAnalog adc1(A9);
         virtual void update(void);
         friend void dma_ch9_isr(void);
 private:
         static audio_block_t *block_left;
         static uint16_t block_offset;
-	static uint16_t dc_average;
+	    static uint16_t dc_average;
         static bool update_responsibility;
-	static DMAChannel dma;
-	static void isr(void);
-	static void init(uint8_t pin);
+	    static DMAChannel dma;
+	    static void isr(void);
+	    static void init(uint8_t pin);
 };
 
 #endif
