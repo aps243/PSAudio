@@ -65,13 +65,20 @@ void AudioInputAnalog::init(uint8_t pin)
 		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
 		PDB0_CH0C1 = 0x0101;
 	}
-
+	
+	 /*******************************************************
+	 * Below is where the library is hardcoded to use ADC0. *
+	 * It seems that we could modify it to be variable, but *          
+	 * I'm not sure the variable ADC1 exists by default, as *
+	 * ADC0 is not declared in this file or in the header.  *
+	 *******************************************************/
+	 
 	// enable the ADC for hardware trigger and DMA
-	ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
+	ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;  //  ADC0 here
 
 	// set up a DMA channel to store the ADC data
 	dma.begin(true);
-	dma.TCD->SADDR = &ADC0_RA;
+	dma.TCD->SADDR = &ADC0_RA;  //  ADC0 here
 	dma.TCD->SOFF = 0;
 	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
 	dma.TCD->NBYTES_MLNO = 2;
@@ -82,7 +89,7 @@ void AudioInputAnalog::init(uint8_t pin)
 	dma.TCD->DLASTSGA = -sizeof(analog_rx_buffer);
 	dma.TCD->BITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
+	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);     //  ADC0 here
 	update_responsibility = update_setup();
 	dma.enable();
 	dma.attachInterrupt(isr);
