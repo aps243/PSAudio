@@ -12,16 +12,17 @@ const int LEDpin = 13;
 AudioAnalyzeFFT1024 FFT1;
 AudioAnalyzeFFT1024 FFT2;
 
-AudioInputAnalog adc1(A9);  // Pins on two 
-AudioInputAnalog adc2 = AudioInputAnalog(A3, 1);  // different ADC's
+AudioInputAnalog adc1(A11, 0);  // Pins on two 
+AudioInputAnalog adc2(A13, 1);  // different ADC's
 
 
-AudioConnection patchCord1(adc1, FFT1);
-AudioConnection patchCord2(adc2, FFT2);
+AudioConnection patchCord1(adc1, 0, FFT1, 0);
+AudioConnection patchCord2(adc2, 0, FFT2, 0);
 
 
 void setup()
 { 
+  AudioMemory(24);
   Serial.begin(9600);
   Serial.println("Starting...");
   
@@ -29,22 +30,22 @@ void setup()
   for(int i = 0; i < 5; i++)
     { blinkLED(LEDpin); }
   
-  FFT1.windowFunction(AudioWindowFlattop1024);
-  FFT2.windowFunction(AudioWindowFlattop1024);
+  //FFT1.windowFunction(AudioWindowFlattop1024);
+  //FFT2.windowFunction(AudioWindowFlattop1024);
   
   Serial.println("Finished init");
   
 }
-
+int counter = 2500000; // for debugging only
 void loop() 
 {
  
- blinkLED(LEDpin);
+ //blinkLED(LEDpin);
   
  float n;
  int i;
  
-  if(FFT1.available())
+  if(FFT2.available())
   {
    Serial.print("FFT: ");
    for(i=0; i<40; i++)
@@ -61,33 +62,37 @@ void loop()
      }
    }
    Serial.println();
-  }  else { Serial.print("ADC1 not available..."); }
+  }  //else { Serial.println("ADC1 not available..."); }
+  
+  counter--;
+  if ( counter == 0 )
+    { Serial.println("Halted.") ; while( 1 ) ; }
  
-  if(FFT2.available())
-  {
-   Serial.print("FFT: ");
-   for(i=0; i<40; i++)
-   {
-     n = FFT2.read(i);
-     if(n >= 0.01)
-     {
-       Serial.print(n);
-       Serial.print(" ");
-     }
-     else
-     {
-       Serial.print("  -  ");
-     }
-   }
-   Serial.println();
-  }  else { Serial.print("ADC2 not available..."); }
+//  if(FFT2.available())
+//  {
+//   Serial.print("FFT: ");
+//   for(i=0; i<40; i++)
+//   {
+//     n = FFT2.read(i);
+//     if(n >= 0.01)
+//     {
+//       Serial.print(n);
+//       Serial.print(" ");
+//     }
+//     else
+//     {
+//       Serial.print("  -  ");
+//     }
+//   }
+//   Serial.println();
+//  }  else { Serial.print("ADC2 not available..."); }
   
 }
 
 void blinkLED(int ledPin)
 {
   digitalWrite(ledPin, HIGH);   // set the LED on
-  delay(1000);                  // wait for a second
+  delay(333);                  // wait for a second
   digitalWrite(ledPin, LOW);    // set the LED off
-  delay(1000);                  // wait for a second 
+  delay(333);                  // wait for a second 
 }
