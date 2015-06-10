@@ -23,15 +23,18 @@ const int myInput = A2;
 // Create the Audio components.  These should be created in the
 // order data flows, inputs/sources -> processing -> outputs
 //
-//AudioInputAnalog2         adc1(A2);           
-//AudioInputAnalog2        adc1; 
-AudioInputAnalog2         adc1(myInput);           
-//AudioAnalyzeFFT256       fft256_1;      
+AudioInputAnalog         adc1(A2);           
+
+AudioInputAnalog2         adc2(myInput);           
+
 //AudioAnalyzeToneDetect   tone1;          
+
 AudioAnalyzeFFT256    myFFT;
+AudioAnalyzeFFT256    myFFT2;
 //AudioConnection          patchCord1(adc1, tone1);
-AudioConnection          patchCord2(adc1, myFFT);
-//AudioConnection          patchCord3(adc2, myFFT);
+
+AudioConnection          patchCord2(adc2, myFFT2);
+AudioConnection          patchCord3(adc1, myFFT);
 
 
 
@@ -49,7 +52,7 @@ void loop() {
   if (myFFT.available()) {
     // each time new FFT data is available
     // print it all to the Arduino Serial Monitor
-    Serial.print("FFT: ");
+    Serial.print("myFFT: ");
     for (i=0; i<40; i++) {
       n = myFFT.read(i);
       if (n >= 0.01) {
@@ -61,6 +64,22 @@ void loop() {
     }
     Serial.println();
   }
+  if (myFFT2.available()) {
+    // each time new FFT data is available
+    // print it all to the Arduino Serial Monitor
+    Serial.print("myFFT2: ");
+    for (i=0; i<40; i++) {
+      n = myFFT.read(i);
+      if (n >= 0.01) {
+        Serial.print(n);
+        Serial.print(" ");
+      } else {
+        Serial.print("  -  "); // don't print "0.00"
+      }
+    }
+    Serial.println();
+  }
+  
 }
 
 
