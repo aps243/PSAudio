@@ -73,6 +73,7 @@ void AudioInputAnalog2::init(uint8_t pin)
 	// conversion.  This completes the self calibration stuff and
 	// leaves the ADC in a state that's mostly ready to use
 	analogReadRes(16);
+
 	analogReference(INTERNAL); // range 0 to 1.2 volts
 	analogReadAveraging(8);
 	// Actually, do many normal reads, to start with a nice DC level
@@ -90,11 +91,35 @@ void AudioInputAnalog2::init(uint8_t pin)
 	  || PDB0_MOD != PDB_PERIOD
 	  || PDB0_IDLY != 1
 	  || PDB0_CH0C1 != 0x0101) {
+/*
+ TOS = 0x01 | TOS = 0x00 - channels assert when the counter reaches the channel
+ delay register plus one peripheral clock cycle after PDB trigger */
+//PDB0_CH0C1 |= PDB_C1_EN(0x1) | PDB_C1_TOS(0x1);
+/* delete next line if the two-time measurement per PWM period is not required */
+//PDB0_CH0C1 |= PDB_C1_EN(0x2) | PDB_C1_TOS(0x2);
+//PDB0_CH1C1 |= PDB_C1_EN(0x1) | PDB_C1_TOS(0x1);
+//Serial.println("Got here;");
+PDB0_CH1C1 = 0x0101;
+/* delete next line if the two-time measurement per PWM period is not required */
+//PDB0_CH1C1 |= PDB_C1_EN(0x2) | PDB_C1_TOS(0x2);
+/* set the delay value for the channel's corresponding pre-triggers */
+//PDB0_CH0DLY0 = 0; /* corresponding ADC0_RA */
+//PDB0_CH1DLY0 = 0; /* corresponding ADC1_RA */
+/* delete next two lines if the two-time measurement per PWM period is not required */
+//PDB0_CH0DLY1 = 1250; /* corresponding ADC0_RB */
+//PDB0_CH1DLY1 = 1250; /* corresponding ADC1_RB */
+/* PDBEN = 1 - PDB enabled, TRGSEL = 0x8 - FTM0 is a trigger source for PDB,
+ LDOK - writing 1 to this bit updates the internal registers*/
+//PDB0_SC |= PDB_SC_PDBEN_MASK | PDB_SC_LDOK_MASK; 
+
+
+
 		SIM_SCGC6 |= SIM_SCGC6_PDB;
+//		SIM_SCGC3 |= SIM_SCGC3_ADC1;
 //#define SIM_SCGC6		(*(volatile uint32_t *)0x4004803C) // System Clock Gating Control Register 6
 //#define SIM_SCGC6_PDB			((uint32_t)0x00400000)		// PDB Clock Gate Control SIM_SCGC6 |= SIM_SCGC6_DMAMUX;
 
-		PDB0_IDLY = 1;
+//		PDB0_IDLY = 1;
 
 //#define PDB0_IDLY		(*(volatile uint32_t *)0x4003600C) // Interrupt Delay Register
 /*PDB Interrupt Delay
@@ -119,7 +144,7 @@ register that is effective for the current cycle of PDB
 		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
 
 //#define PDB_SC_SWTRIG			0x00010000		// Software Trigger
-		PDB0_CH1C1 = 0x0101;
+//		PDB0_CH1C1 = 0x0101;
 		//PDB0_CH0C1 = 0x0101; //b0000 0000 0000 0001 0000 0001
 //#define PDB0_CH0C1		(*(volatile uint32_t *)0x40036010) // Channel n Control Register 1
 /*PDB channel's corresponding pre-trigger asserts when the counter reaches the channel delay register
@@ -136,7 +161,9 @@ MCU.
 
 	// enable the ADC for hardware trigger and DMA
 	//ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
-	ADC1_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
+	
+
+ADC1_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
 	// set up a DMA channel to store the ADC data
 	myDMA.begin(true);
 	myDMA.TCD->SADDR = &ADC1_RA;
