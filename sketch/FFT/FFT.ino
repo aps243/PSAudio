@@ -69,7 +69,7 @@ void loop() {
     // print it all to the Arduino Serial Monitor
     Serial.print("myFFT2: ");
     for (i=0; i<40; i++) {
-      n = myFFT.read(i);
+      n = myFFT2.read(i);
       if (n >= 0.01) {
         Serial.print(n);
         Serial.print(" ");
