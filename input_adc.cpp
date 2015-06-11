@@ -28,6 +28,9 @@
 #include "utility/pdb.h"
 #include "utility/dspinst.h"
 
+// #include <Serial>// TMP
+// Serial.begin(9600); // TMP
+
 DMAMEM static uint16_t analog_rx_buffer[AUDIO_BLOCK_SAMPLES];
 audio_block_t * AudioInputAnalog::block_left = NULL;
 uint16_t AudioInputAnalog::block_offset = 0;
@@ -37,8 +40,13 @@ DMAChannel AudioInputAnalog::dma(false);
 int AudioInputAnalog::adc_to_use = 0;
 
 void AudioInputAnalog::setADC(int adc)
-{
-	adc = adc_to_use;
+{	
+	if ( adc != 1 )
+		adc_to_use = 0;
+	else
+		adc_to_use = 1;
+	Serial.print("ADC to use changed to ");
+	Serial.println(adc_to_use);
 }
 
 void AudioInputAnalog::init(uint8_t pin)//, uint8_t other_adc)
@@ -153,7 +161,7 @@ void AudioInputAnalog::update(void)
 	// allocate new block (ok if NULL)
 	new_left = allocate();
 
-	__disable_irq();
+	__disable_irq(); 	//	 Do not allow interupts
 	offset = block_offset;
 	if (offset < AUDIO_BLOCK_SAMPLES) {
 		// the DMA didn't fill a block
@@ -165,20 +173,20 @@ void AudioInputAnalog::update(void)
 				block_left = new_left;
 				block_offset = 0;
 				__enable_irq();
-	 			 //Serial.println("fail1");
+	 			  Serial.println("fail 1"); 	 // debugging 
 			} else {
 				// the DMA already has blocks, doesn't need this
 				__enable_irq();
 				release(new_left);
-	 			 //Serial.print("fail2, offset=");
-	 			 //Serial.println(offset);
+	 			 Serial.print("fail 2, offset="); 	// Usefull for 
+	 			 Serial.println(offset);			// debugging 
 			}
 		} else {
 			// The DMA didn't fill a block, and we could not allocate
 			// memory... the system is likely starving for memory!
 			// Sadly, there's nothing we can do.
 			__enable_irq();
-	 		 //Serial.println("fail3");
+	 		 Serial.println("fail 3 :: DMA didn't allow a block fill!"); 	// More debugging
 		}
 		return;
 	}
@@ -206,17 +214,3 @@ void AudioInputAnalog::update(void)
 	transmit(out_left);
 	release(out_left);
 }
-/*
-void setADC(int newADC)
-{
-    if (newADC != 1)
-        adc_to_use = 0;
-    else
-        adc_to_use = 1;
-}
-
-int getADC()
-{
-    return adc_to_use;
-}
-*/

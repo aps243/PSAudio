@@ -11,6 +11,12 @@
 //
 // This example code is in the public domain.
 
+// We may want to look at this for a reference. Though we can setup two pins on different ADCs 
+// at this point, this is the supported way using the ADC class. Perhaps we should use it, and 
+// rewrite the AudioInputAnalog using it's methodology. This seems like it could solve any errors
+// we see due to the dma assignments. 
+// https://forum.pjrc.com/threads/25532-ADC-library-update-now-with-support-for-Teensy-3-1
+
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>

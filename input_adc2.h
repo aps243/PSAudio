@@ -30,6 +30,8 @@
 #include "AudioStream.h"
 #include "DMAChannel.h"
 
+//#include <ADC.h>
+
 class AudioInputAnalog2 : public AudioStream
 {
 public:
@@ -44,6 +46,7 @@ private:
 	static uint16_t dc_average;
         static bool update_responsibility;
 	static DMAChannel myDMA;
+        //static ADC myADC;
 	static void isr(void);
 	static void init(uint8_t pin);
 };

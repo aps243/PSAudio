@@ -38,9 +38,7 @@ DMAMEM static uint16_t analog_rx_buffer2[AUDIO_BLOCK_SAMPLES];
 
 //#define DMAMEM __attribute__ ((section(".dmabuffers"), used))
 
-
 audio_block_t * AudioInputAnalog2::block_left = NULL;
-
 
 /*
 *typedef struct audio_block_struct {
@@ -53,34 +51,37 @@ audio_block_t * AudioInputAnalog2::block_left = NULL;
 */
 
 uint16_t AudioInputAnalog2::block_offset = 0;
-
 //Class::Var
-
 uint16_t AudioInputAnalog2::dc_average = 0;
-
-
 bool AudioInputAnalog2::update_responsibility = false;
-
 // class DMAChannel : public DMABaseClass {  //..cores/teensy3/DMAChannel.h
 DMAChannel AudioInputAnalog2::myDMA(false);
-
+//ADC AudioInputAnalog2::myADC;
 
 void AudioInputAnalog2::init(uint8_t pin)
 {
+	//Serial.begin(9600);
+	//Serial.println("Entered init");
 	uint32_t i, sum=0;
 
 	// Configure the ADC and run at least one software-triggered
 	// conversion.  This completes the self calibration stuff and
 	// leaves the ADC in a state that's mostly ready to use
+	//myADC.setResolution(16);
+	//myADC.setReference(INTERNAL); // range 0 to 1.2 volts
+	//myADC.setAveraging(8);
+	
 	analogReadRes(16);
-
 	analogReference(INTERNAL); // range 0 to 1.2 volts
 	analogReadAveraging(8);
+
 	// Actually, do many normal reads, to start with a nice DC level
 	for (i=0; i < 1024; i++) {
+		//sum += myADC.analogRead(pin, 1);
 		sum += analogRead(pin);
 	}
 	dc_average = sum >> 10;
+	//Serial.println("finished analogReadAveraging");
 
 //#define PDB_CONFIG (PDB_SC_TRGSEL(15) | PDB_SC_PDBEN | PDB_SC_CONT | PDB_SC_PDBIE | PDB_SC_DMAEN)
 //#define PDB_SC_TRGSEL(n)		(((n) & 15) << 8)	// Trigger Input Source Select
@@ -99,7 +100,7 @@ void AudioInputAnalog2::init(uint8_t pin)
 //PDB0_CH0C1 |= PDB_C1_EN(0x2) | PDB_C1_TOS(0x2);
 //PDB0_CH1C1 |= PDB_C1_EN(0x1) | PDB_C1_TOS(0x1);
 //Serial.println("Got here;");
-PDB0_CH1C1 = 0x0101;
+		PDB0_CH0C1 = 0x0101;
 /* delete next line if the two-time measurement per PWM period is not required */
 //PDB0_CH1C1 |= PDB_C1_EN(0x2) | PDB_C1_TOS(0x2);
 /* set the delay value for the channel's corresponding pre-triggers */
@@ -119,7 +120,7 @@ PDB0_CH1C1 = 0x0101;
 //#define SIM_SCGC6		(*(volatile uint32_t *)0x4004803C) // System Clock Gating Control Register 6
 //#define SIM_SCGC6_PDB			((uint32_t)0x00400000)		// PDB Clock Gate Control SIM_SCGC6 |= SIM_SCGC6_DMAMUX;
 
-//		PDB0_IDLY = 1;
+		PDB0_IDLY = 1;
 
 //#define PDB0_IDLY		(*(volatile uint32_t *)0x4003600C) // Interrupt Delay Register
 /*PDB Interrupt Delay
@@ -144,8 +145,8 @@ register that is effective for the current cycle of PDB
 		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
 
 //#define PDB_SC_SWTRIG			0x00010000		// Software Trigger
-//		PDB0_CH1C1 = 0x0101;
-		//PDB0_CH0C1 = 0x0101; //b0000 0000 0000 0001 0000 0001
+		//PDB0_CH1C1 = 0x0101;
+		PDB0_CH0C1 = 0x0101; //b0000 0000 0000 0001 0000 0001
 //#define PDB0_CH0C1		(*(volatile uint32_t *)0x40036010) // Channel n Control Register 1
 /*PDB channel's corresponding pre-trigger asserts when the counter reaches the channel delay register
 and one peripheral clock cycle after a rising edge is detected on selected trigger input source or
@@ -158,6 +159,7 @@ MCU.
 1 PDB channel's corresponding pre-trigger enabled.
 */
 	}
+	//Serial.println("Finished PDB trigger");
 
 	// enable the ADC for hardware trigger and DMA
 	//ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
@@ -181,6 +183,8 @@ ADC1_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
 	update_responsibility = update_setup();
 	myDMA.enable();
 	myDMA.attachInterrupt(isr);
+
+	//Serial.println("Finished DMA setup");
 }
 
 
@@ -232,7 +236,7 @@ void AudioInputAnalog2::update(void)
 	// allocate new block (ok if NULL)
 	new_left = allocate();
 
-	__disable_irq();
+	__disable_irq(); 	//	 Do not allow interupts
 	offset = block_offset;
 	if (offset < AUDIO_BLOCK_SAMPLES) {
 		// the DMA didn't fill a block
@@ -244,20 +248,20 @@ void AudioInputAnalog2::update(void)
 				block_left = new_left;
 				block_offset = 0;
 				__enable_irq();
-	 			 //Serial.println("fail1");
+	 			  //Serial.println("ADC1 fail 1"); 	 // debugging 
 			} else {
 				// the DMA already has blocks, doesn't need this
 				__enable_irq();
 				release(new_left);
-	 			 //Serial.print("fail2, offset=");
-	 			 //Serial.println(offset);
+	 			 //Serial.print("ADC1 fail 2, offset="); 	// Usefull for 
+	 			 //Serial.println(offset);			// debugging 
 			}
 		} else {
 			// The DMA didn't fill a block, and we could not allocate
 			// memory... the system is likely starving for memory!
 			// Sadly, there's nothing we can do.
 			__enable_irq();
-	 		 //Serial.println("fail3");
+	 		 //Serial.println("ADC1 fail 3 :: DMA didn't allow a block fill!"); 	// More debugging
 		}
 		return;
 	}
