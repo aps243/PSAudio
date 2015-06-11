@@ -25,7 +25,7 @@ const int myInput = A2;
 //
 AudioInputAnalog         adc1(A2);           
 
-AudioInputAnalog2         adc2(myInput);           
+AudioInputAnalog2         adc2(myInput);  //  Do we want both audio components on the same pin?          
 
 //AudioAnalyzeToneDetect   tone1;          
 
@@ -33,7 +33,7 @@ AudioAnalyzeFFT256    myFFT;
 AudioAnalyzeFFT256    myFFT2;
 //AudioConnection          patchCord1(adc1, tone1);
 
-AudioConnection          patchCord2(adc2, myFFT2);
+AudioConnection          patchCord2(adc2, myFFT2);   // The issue with creating a Separate library for AudioInputAnalog to run ADC1 is that now we'll have to edit every library that uses it.
 AudioConnection          patchCord3(adc1, myFFT);
 
 
