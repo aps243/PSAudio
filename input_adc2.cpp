@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include "input_adc.h"
+#include "input_adc2.h"
 #include "utility/pdb.h"
 #include "utility/dspinst.h"
 

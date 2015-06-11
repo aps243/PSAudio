@@ -24,8 +24,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef input_adc_h_
-#define input_adc_h_
+#ifndef input_adc2_h_
+#define input_adc2_h_
 
 #include "AudioStream.h"
 #include "DMAChannel.h"

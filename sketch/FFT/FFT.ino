@@ -15,9 +15,9 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
-#include "input_adc2.h"
+//#include "input_adc2.h"
 
-const int myInput = A2;
+const int myInput = A5;
 
 
 // Create the Audio components.  These should be created in the
@@ -33,7 +33,7 @@ AudioAnalyzeFFT256    myFFT;
 AudioAnalyzeFFT256    myFFT2;
 //AudioConnection          patchCord1(adc1, tone1);
 
-AudioConnection          patchCord2(adc2, myFFT2);   // The issue with creating a Separate library for AudioInputAnalog to run ADC1 is that now we'll have to edit every library that uses it.
+AudioConnection          patchCord2((AudioInputAnalog)adc2, myFFT2);   // The issue with creating a Separate library for AudioInputAnalog to run ADC1 is that now we'll have to edit every library that uses it, since we can't typecast it.
 AudioConnection          patchCord3(adc1, myFFT);
 
 
