@@ -11,69 +11,69 @@
 //
 // This example code is in the public domain.
 
-// We may want to look at this for a reference. Though we can setup two pins on different ADCs 
-// at this point, this is the supported way using the ADC class. Perhaps we should use it, and 
-// rewrite the AudioInputAnalog using it's methodology. This seems like it could solve any errors
-// we see due to the dma assignments. 
-// https://forum.pjrc.com/threads/25532-ADC-library-update-now-with-support-for-Teensy-3-1
+// ADC Pinout: https://forum.pjrc.com/attachment.php?attachmentid=1793&d=1396800490
+// See Updates at the bottom of the page: https://forum.pjrc.com/threads/25532-ADC-library-update-now-with-support-for-Teensy-3-1
+
 
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
-//#include "input_adc2.h"
+//#include <input_adc2.h>
 
-const int myInput = A5;
 
+const int pin1 = A2;
+const int pin2 = A13;
 
 // Create the Audio components.  These should be created in the
 // order data flows, inputs/sources -> processing -> outputs
 //
-AudioInputAnalog         adc1(A2);           
 
-AudioInputAnalog2         adc2(myInput);  //  Do we want both audio components on the same pin?          
+//AudioInputAnalog         adc1(pin1);           
+AudioInputAnalog2         adc2(pin2);  //  Do we want both audio components on the same pin?        
 
 //AudioAnalyzeToneDetect   tone1;          
 
-AudioAnalyzeFFT256    myFFT;
+//AudioAnalyzeFFT256    myFFT;
 AudioAnalyzeFFT256    myFFT2;
+
 //AudioConnection          patchCord1(adc1, tone1);
 
-AudioConnection          patchCord2((AudioInputAnalog)adc2, myFFT2);   // The issue with creating a Separate library for AudioInputAnalog to run ADC1 is that now we'll have to edit every library that uses it, since we can't typecast it.
-AudioConnection          patchCord3(adc1, myFFT);
+AudioConnection          patchCord2(adc2, myFFT2);
+//AudioConnection          patchCord3(adc1, myFFT);
 
 
 
 void setup() {
-  // Audio connections require memory to work.  For more
-  // detailed information, see the MemoryAndCpuUsage example
-  AudioMemory(50);
-
+  Serial.begin(9600);
+  Serial.println( adc2.init_error );
+  Serial.println("initialized.");
+  AudioMemory(64);
   }
 
 void loop() {
   float n;
   int i;
 
-  if (myFFT.available()) {
-    // each time new FFT data is available
-    // print it all to the Arduino Serial Monitor
-    Serial.print("myFFT: ");
-    for (i=0; i<40; i++) {
-      n = myFFT.read(i);
-      if (n >= 0.01) {
-        Serial.print(n);
-        Serial.print(" ");
-      } else {
-        Serial.print("  -  "); // don't print "0.00"
-      }
-    }
-    Serial.println();
-  }
+//  if (myFFT.available()) {
+//    // each time new FFT data is available
+//    // print it all to the Arduino Serial Monitor
+//    Serial.print("myFFT 1: ");
+//    for (i=0; i<40; i++) {
+//      n = myFFT.read(i);
+//      if (n >= 0.01) {
+//        Serial.print(n);
+//        Serial.print(" ");
+//      } else {
+//        Serial.print("  -  "); // don't print "0.00"
+//      }
+//    }
+//    Serial.println();
+//  }
   if (myFFT2.available()) {
     // each time new FFT data is available
     // print it all to the Arduino Serial Monitor
-    Serial.print("myFFT2: ");
+    Serial.print("myFFT 2: ");
     for (i=0; i<40; i++) {
       n = myFFT2.read(i);
       if (n >= 0.01) {
@@ -85,7 +85,8 @@ void loop() {
     }
     Serial.println();
   }
-  
+//  Serial.println("loop");
 }
+
 
 
