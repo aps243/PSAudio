@@ -36,9 +36,8 @@
 class AudioInputAnalog2 : public AudioStream
 {
 public:
-        String init_error;
         AudioInputAnalog2() : AudioStream(0, NULL) { init(A3); }
-        AudioInputAnalog2(uint8_t pin) : AudioStream(0, NULL) { init_error = init(pin); }
+        AudioInputAnalog2(uint8_t pin) : AudioStream(0, NULL) { /*serialstatus("test");*/ init(pin); }
         virtual void update(void);
         friend void dma_ch10_isr(void); //cores/teensy3/mk20dx128.c:
 	//// 25 DMA channel 9 transfer complete
@@ -50,8 +49,8 @@ private:
 	static DMAChannel myDMA;
         //static ADC myADC;
 	static void isr(void);
-	//static void init(uint8_t pin);
-        static String init(uint8_t pin);
+        static void init(uint8_t pin);
+       // static void serialstatus(String msg);
 };
 
 #endif

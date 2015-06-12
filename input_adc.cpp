@@ -28,6 +28,12 @@
 #include "utility/pdb.h"
 #include "utility/dspinst.h"
 
+#define PDB0_CH1C1              *(volatile uint32_t *)0x40036038 // Channel 1 Control Register 1
+#define PDB0_CH1S               *(volatile uint32_t *)0x4003603C // Channel 1 Status Register
+#define PDB0_CH1DLY0            *(volatile uint32_t *)0x40036040 // Channel 1 Delay 0 Register
+#define PDB0_CH1DLY1            *(volatile uint32_t *)0x40036044 // Channel 1 Delay 1 Register
+
+
 // #include <Serial>// TMP
 // Serial.begin(9600); // TMP
 
@@ -45,8 +51,8 @@ void AudioInputAnalog::setADC(int adc)
 		adc_to_use = 0;
 	else
 		adc_to_use = 1;
-	Serial.print("ADC to use changed to ");
-	Serial.println(adc_to_use);
+	//Serial.print("ADC to use changed to ");
+	//Serial.println(adc_to_use);
 }
 
 void AudioInputAnalog::init(uint8_t pin)//, uint8_t other_adc)
@@ -66,17 +72,35 @@ void AudioInputAnalog::init(uint8_t pin)//, uint8_t other_adc)
 	dc_average = sum >> 10;
 
 	// set the programmable delay block to trigger the ADC at 44.1 kHz
-	if (!(SIM_SCGC6 & SIM_SCGC6_PDB )
-	  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
-	  || PDB0_MOD != PDB_PERIOD
-	  || PDB0_IDLY != 1
-	  || PDB0_CH0C1 != 0x0101) {
-		SIM_SCGC6 |= SIM_SCGC6_PDB;
-		PDB0_IDLY = 1;
-		PDB0_MOD = PDB_PERIOD;
-		PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
-		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
-		PDB0_CH0C1 = 0x0101;
+	if (adc_to_use == 0) {
+		if (!(SIM_SCGC6 & SIM_SCGC6_PDB )
+		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
+		  || PDB0_MOD != PDB_PERIOD
+		  || PDB0_IDLY != 1
+		  || PDB0_CH0C1 != 0x0101) {
+			SIM_SCGC6 |= SIM_SCGC6_PDB;
+			PDB0_IDLY = 1;
+			PDB0_MOD = PDB_PERIOD;
+			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
+			PDB0_CH0C1 = 0x0101;
+		}
+	}
+	else
+	{
+		if (!(SIM_SCGC6 & SIM_SCGC6_PDB )
+		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
+		  || PDB0_MOD != PDB_PERIOD
+		  || PDB0_IDLY != 1
+		  || PDB0_CH1C1 != 0x0101) {
+		  	SIM_SCGC3 |= (SIM_SCGC3_ADC1);
+			SIM_SCGC6 |= SIM_SCGC6_PDB;
+			PDB0_IDLY = 1;
+			PDB0_MOD = PDB_PERIOD;
+			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
+			PDB0_CH1C1 = 0x0101;
+		}
 	}
 
 
@@ -173,20 +197,20 @@ void AudioInputAnalog::update(void)
 				block_left = new_left;
 				block_offset = 0;
 				__enable_irq();
-	 			  Serial.println("fail 1"); 	 // debugging 
+	 			  //Serial.println("fail 1"); 	 // debugging 
 			} else {
 				// the DMA already has blocks, doesn't need this
 				__enable_irq();
 				release(new_left);
-	 			 Serial.print("fail 2, offset="); 	// Usefull for 
-	 			 Serial.println(offset);			// debugging 
+	 			 //Serial.print("fail 2, offset="); 	// Usefull for 
+	 			 //Serial.println(offset);			// debugging 
 			}
 		} else {
 			// The DMA didn't fill a block, and we could not allocate
 			// memory... the system is likely starving for memory!
 			// Sadly, there's nothing we can do.
 			__enable_irq();
-	 		 Serial.println("fail 3 :: DMA didn't allow a block fill!"); 	// More debugging
+	 		 //Serial.println("fail 3 :: DMA didn't allow a block fill!"); 	// More debugging
 		}
 		return;
 	}
