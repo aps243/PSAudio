@@ -33,7 +33,11 @@
 #define input_adc2_h_
 
  #include "AudioStream.h"
- #include "../ADC/ADC.h"
+ //#include "../ADC/ADC.h"
+ 
+ extern "C" {
+	#include <ADC.h>
+ }
 
  class AudioInputAnalog2 : public AudioStream
  {
@@ -41,17 +45,18 @@
  public:
  			AudioInputAnalog2() : AudioStream(0, NULL){ init(A2); }
  			AudioInputAnalog2(uint8_t pin) : AudioStream(0, NULL){ init(pin); }
- 			virtual void update(void);
- 			static void adc1_isr();
- 			static volatile uint16_t lastValue;
- 			static uint16_t getADCval(){ return lastValue; }
- 			static void setADCval(){ lastValue = (uint16_t)adc->analogReadContinuous(ADC_1); }
+ 			virtual void update(void);	
+ 			static ADC *adc;	
  private:
  			//audio_block_t *inputQueueArray[1];
  			static void init(uint8_t pin);
- 			static uint16_t dc_average;
- 			static ADC *adc;
+ 			static void pdb_isr(void);
+ 			static void adc1_isr();
+ 			static void isr(void);
  			
+ 			static uint16_t dc_average;
+ 			static audio_block_t *audio;
+ 			static uint16_t block_offset;
  };
 
 #endif

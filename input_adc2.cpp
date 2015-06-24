@@ -34,6 +34,8 @@
 #include "utility/dspinst.h"
 
 // #include "../ADC/ADC_Module.h"
+ audio_block_t * AudioInputAnalog2::audio = NULL;
+ uint16_t AudioInputAnalog2::block_offset = 0;
  uint16_t AudioInputAnalog2::dc_average = 0;
 
 
@@ -69,7 +71,7 @@ void AudioInputAnalog2::init(uint8_t pin)//, uint8_t other_adc)
 
 	// set the programmable delay block to trigger the ADC at 44.1 kHz
     // values will be converted every 22.6666666661 microseconds.
-	// adc->adc1->stopPDB();	-- probably unneseccary
+	adc->adc1->stopPDB();	//-- probably unneseccary
     adc->adc1->startPDB( AUDIO_SAMPLE_RATE ); //frequency in Hz
     adc->startContinuous(pin, ADC_1);
 
@@ -109,41 +111,85 @@ void AudioInputAnalog2::init(uint8_t pin)//, uint8_t other_adc)
 // Necessary Functions for ADC interupts for PDB
 /*********************************************************************************************/
 // If you enable interrupts make sure to call readSingle() to clear the interrupt.
-void AudioInputAnalog2::adc1_isr() {
-       adc->adc1->readSingle();
-        //digitalWriteFast(LED_BUILTIN, !digitalReadFast(LED_BUILTIN) );
+void AudioInputAnalog2::adc1_isr(void) {
+	    //audio->data[block_offset++] = (uint16_t)adc->analogReadContinuous(ADC_1);	
+        //adc->adc1->readSingle();
+        digitalWriteFast(LED_BUILTIN, !digitalReadFast(LED_BUILTIN) );
 }
 
 // pdb interrupt is enabled in case you need it.
-void pdb_isr(void) {
+void AudioInputAnalog2::pdb_isr(void) {
         PDB0_SC &=~PDB_SC_PDBIF; // clear interrupt
+        //audio->data[block_offset++] = (uint16_t)adc->analogReadContinuous(ADC_1);
         digitalWriteFast(LED_BUILTIN, !digitalReadFast(LED_BUILTIN) );
 }
 /*********************************************************************************************/
 
+void AudioInputAnalog2::isr(void)
+{
+	// Fill a block
+	unsigned int offset;
+	for(offset=block_offset; offset < AUDIO_BLOCK_SAMPLES; offset++)
+	{
+		if( adc->isComplete(ADC_1) )
+		{
+			// throws: "undefined reference to `AudioInputAnalog2::adc" collect2: error: ld returned 1 exit status
+			audio->data[offset] = (uint16_t)adc->analogReadContinuous(1);
+		}
+	}
+	block_offset = offset;
+}
+
+
 void AudioInputAnalog2::update(void)
 {
-	audio_block_t *output=NULL;
-	unsigned int dc;
+	audio_block_t *new_audio=NULL, *output=NULL;
+	unsigned int dc, offset;
 	int16_t s, *p, *end;
 	uint32_t tmp;
-	int i;
 
-	output = allocate();
+	new_audio = allocate();
 
-	//__disable_irq();-- may cause issues since PDB uses an interupt to trigger
-	// fill the block -- not sure if this is fast enough.
-	// 				  -- PDB may not be available when we try to read from it.
-	for (i=0; i<AUDIO_BLOCK_SAMPLES; i++)
-	{
-		setADCval();
-		output->data[i] = getADCval(); // the unsigned is necessary for 16 bits, otherwise values larger than 3.3/2 V are negative.
+	isr();
+
+	__disable_irq();
+	offset = block_offset;
+	if (offset < AUDIO_BLOCK_SAMPLES) {
+		// block not filled
+		if (new_audio != NULL) {
+			// but we allocated a block
+			if (audio == NULL) {
+				// no blocks to fill, so
+				// give it the one we just allocated
+				audio = new_audio;
+				block_offset = 0;
+				__enable_irq();
+	 			  //Serial.println("fail 1"); 	 // debugging 
+			} else {
+				// Already have block, don't need this
+				__enable_irq();
+				release(new_audio);
+	 			 //Serial.print("fail 2, offset="); 	// Usefull for 
+	 			 //Serial.println(offset);			// debugging 
+			}
+		} else {
+			// Didn't fill block, and we could not allocate
+			// memory... the system is likely starving for memory!
+			// Sadly, there's nothing we can do.
+			__enable_irq();
+	 		 //Serial.println("fail 3 :: didn't allow a block fill!"); 	// More debugging
+		}
+		return;
 	}
-	//__enable_irq();
+	// block full, so grab it and get the
+	// new block, as quickly as possible
+	output = audio;
+	audio = new_audio;
+	block_offset = 0;
+	__enable_irq();
 
-	//remove DC offset -- possibly unnecessary
 	dc = dc_average;
-	p = output->data;
+	p = audio->data;
 	end = p + AUDIO_BLOCK_SAMPLES;
 	do {
 		tmp = (uint16_t)(*p) - (int32_t)dc;
@@ -156,3 +202,4 @@ void AudioInputAnalog2::update(void)
 	transmit(output);
 	release(output);
 }
+

@@ -31,16 +31,17 @@ AudioAnalyzeFFT256    myFFT;
 //AudioOutputI2S         audioOutput;        // audio shield: headphones & line-out
 
 // Connect either the live input or synthesized sine wave
-AudioConnection patchCord1(audioInput, 0, myFFT, 0);
+AudioConnection patchCord1(audioInput, myFFT);
 //AudioConnection patchCord1(sinewave, 0, myFFT, 0);
 
-AudioControlSGTL5000 audioShield;
+//AudioControlSGTL5000 audioShield;
 
 void setup() {
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
   AudioMemory(48);
   pinMode(adc1_pin, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   // Enable the audio shield and set the output volume.
 //  audioShield.enable();
@@ -51,8 +52,7 @@ void setup() {
   myFFT.windowFunction(AudioWindowHanning1024);
   //myFFT.windowFunction(NULL);
 
-  // Create a synthetic sine wave, for testing
-  // To use this, edit the connections above
+  // Create a synthetic sine wave, for testing~/.
 //  sinewave.amplitude(0.8);
 //  sinewave.frequency(1034.007);
 }
